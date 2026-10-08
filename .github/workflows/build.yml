@@ -28,11 +28,6 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_HOME"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
 
-          if [ -z "$ANDROID_HOME" ]; then
-            echo "ERROR: ANDROID_HOME is not set."
-            exit 1
-          fi
-
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" \
             -type f \
             -name sdkmanager \
@@ -40,6 +35,10 @@ jobs:
 
           if [ -z "$SDKMANAGER" ]; then
             echo "ERROR: sdkmanager was not found."
+            echo "Android SDK directory:"
+            ls -la "$ANDROID_HOME"
+            echo "cmdline-tools:"
+            ls -la "$ANDROID_HOME/cmdline-tools" || true
             exit 1
           fi
 
@@ -63,7 +62,7 @@ jobs:
             "platforms;android-35" \
             "build-tools;35.0.1"
 
-      - name: Configure Godot Android Editor Settings
+      - name: Configure Godot Android paths
         run: |
           set -e
 
@@ -79,12 +78,8 @@ jobs:
           export/android/shutdown_adb_on_exit = true
           EOF
 
-          echo "Godot Android Editor Settings:"
+          echo "===== GODOT EDITOR SETTINGS ====="
           cat "$HOME/.config/godot/editor_settings-4.tres"
-
-          test -f "$ANDROID_HOME/platform-tools/adb"
-          test -d "$ANDROID_HOME/platforms/android-35"
-          test -d "$ANDROID_HOME/build-tools/35.0.1"
 
       - name: Download Godot 4.5.2
         run: |
@@ -113,9 +108,11 @@ jobs:
 
           mkdir -p templates_extract
 
-          unzip -q templates.tpz -d templates_extract
+          unzip -q templates.tpz \
+            -d templates_extract
 
-          cp -R templates_extract/templates/. \
+          cp -R \
+            templates_extract/templates/. \
             "$HOME/.local/share/godot/export_templates/4.5.2.stable/"
 
       - name: Verify Godot
@@ -134,14 +131,73 @@ jobs:
             --editor \
             --quit
 
-      - name: Export Android APK
+      - name: Export Android APK - Diagnostic
         run: |
-          set -e
+          set -eux
+
+          echo "========================================"
+          echo "GODOT VERSION"
+          echo "========================================"
+
+          ./godot --version
+
+          echo "========================================"
+          echo "ANDROID ENVIRONMENT"
+          echo "========================================"
+
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          echo "JAVA_HOME=$JAVA_HOME"
+
+          echo "========================================"
+          echo "ANDROID SDK CHECK"
+          echo "========================================"
+
+          test -f "$ANDROID_HOME/platform-tools/adb"
+          test -d "$ANDROID_HOME/platforms/android-35"
+          test -d "$ANDROID_HOME/build-tools/35.0.1"
+
+          echo "ADB:"
+          ls -la "$ANDROID_HOME/platform-tools/adb"
+
+          echo "BUILD TOOLS:"
+          ls -la "$ANDROID_HOME/build-tools/35.0.1"
+
+          echo "ANDROID PLATFORM:"
+          ls -la "$ANDROID_HOME/platforms/android-35"
+
+          echo "========================================"
+          echo "GODOT EDITOR SETTINGS"
+          echo "========================================"
+
+          cat "$HOME/.config/godot/editor_settings-4.tres"
+
+          echo "========================================"
+          echo "EXPORT PRESET"
+          echo "========================================"
+
+          cat export_presets.cfg
+
+          echo "========================================"
+          echo "PROJECT VALIDATION - VERBOSE"
+          echo "========================================"
+
+          ./godot \
+            --headless \
+            --verbose \
+            --path . \
+            --editor \
+            --quit
+
+          echo "========================================"
+          echo "ANDROID EXPORT - VERBOSE"
+          echo "========================================"
 
           mkdir -p build
 
           ./godot \
             --headless \
+            --verbose \
             --path . \
             --export-debug \
             "Android" \
