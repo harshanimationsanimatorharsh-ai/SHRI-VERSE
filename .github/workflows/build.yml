@@ -8,26 +8,23 @@ permissions:
 
 jobs:
   build:
-    name: Build SHRI-VERSE APK
+    name: Build SHRI-VERSE
     runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download Godot
+      - name: Download Godot 4.5.2
         run: |
-          wget -q https://downloads.tuxfamily.org/godotengine/4.5/Godot_v4.5-stable_linux.x86_64.zip
-          unzip -q Godot_v4.5-stable_linux.x86_64.zip
-          mv Godot_v4.5-stable_linux.x86_64 godot
-          chmod +x godot
+          wget -q --show-progress \
+            https://downloads.tuxfamily.org/godotengine/4.5.2/Godot_v4.5.2-stable_linux.x86_64.zip
 
-      - name: Download Android export templates
-        run: |
-          mkdir -p ~/.local/share/godot/export_templates/4.5.stable
-          wget -q https://downloads.tuxfamily.org/godotengine/4.5/Godot_v4.5-stable_export_templates.tpz
-          unzip -q Godot_v4.5-stable_export_templates.tpz \
-            -d ~/.local/share/godot/export_templates/4.5.stable
+          unzip -q Godot_v4.5.2-stable_linux.x86_64.zip
+
+          mv Godot_v4.5.2-stable_linux.x86_64 godot
+
+          chmod +x godot
 
       - name: Verify Godot
         run: |
@@ -36,17 +33,3 @@ jobs:
       - name: Validate project
         run: |
           ./godot --headless --path . --editor --quit
-
-      - name: Upload project validation log
-        if: always()
-        run: |
-          ./godot --headless --path . --editor --quit 2>&1 | tee godot-validation.log
-        continue-on-error: true
-
-      - name: Upload validation log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: godot-validation-log
-          path: godot-validation.log
-          if-no-files-found: warn
