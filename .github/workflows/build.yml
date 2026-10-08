@@ -8,12 +8,31 @@ permissions:
 
 jobs:
   build:
-    name: Build SHRI-VERSE
+    name: Build SHRI-VERSE APK
     runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK components
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.1" \
+            "ndk;28.1.13356709"
 
       - name: Download Godot 4.5.2
         run: |
@@ -24,10 +43,24 @@ jobs:
             https://github.com/godotengine/godot-builds/releases/download/4.5.2-stable/Godot_v4.5.2-stable_linux.x86_64.zip
 
           unzip -q godot.zip
-
           mv Godot_v4.5.2-stable_linux.x86_64 godot
-
           chmod +x godot
+
+      - name: Install Godot Android export templates
+        run: |
+          set -e
+
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.5.2.stable"
+
+          curl -L --fail --retry 3 \
+            -o templates.tpz \
+            https://github.com/godotengine/godot-builds/releases/download/4.5.2-stable/Godot_v4.5.2-stable_export_templates.tpz
+
+          mkdir -p templates_extract
+          unzip -q templates.tpz -d templates_extract
+
+          cp -R templates_extract/templates/. \
+            "$HOME/.local/share/godot/export_templates/4.5.2.stable/"
 
       - name: Verify Godot
         run: |
@@ -35,4 +68,31 @@ jobs:
 
       - name: Validate project
         run: |
-          ./godot --headless --path . --editor --quit
+          ./godot \
+            --headless \
+            --path . \
+            --editor \
+            --quit
+
+      - name: Export Android APK
+        run: |
+          mkdir -p build
+
+          ./godot \
+            --headless \
+            --path . \
+            --export-debug \
+            "Android" \
+            build/SHRI-VERSE.apk
+
+      - name: Verify APK
+        run: |
+          test -f build/SHRI-VERSE.apk
+          ls -lh build/SHRI-VERSE.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SHRI-VERSE-APK
+          path: build/SHRI-VERSE.apk
+          if-no-files-found: error
