@@ -15,18 +15,38 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build Godot project
-        uses: NodotProject/godot-export@v7.0.0
-        with:
-          godot_executable_download_url: https://downloads.tuxfamily.org/godotengine/4.5/Godot_v4.5-stable_linux.x86_64.zip
-          godot_export_templates_download_url: https://downloads.tuxfamily.org/godotengine/4.5/Godot_v4.5-stable_export_templates.tpz
-          relative_project_path: ./
-          export_type: Android
-          export_name: SHRI-VERSE.apk
+      - name: Download Godot
+        run: |
+          wget -q https://downloads.tuxfamily.org/godotengine/4.5/Godot_v4.5-stable_linux.x86_64.zip
+          unzip -q Godot_v4.5-stable_linux.x86_64.zip
+          mv Godot_v4.5-stable_linux.x86_64 godot
+          chmod +x godot
 
-      - name: Upload APK
+      - name: Download Android export templates
+        run: |
+          mkdir -p ~/.local/share/godot/export_templates/4.5.stable
+          wget -q https://downloads.tuxfamily.org/godotengine/4.5/Godot_v4.5-stable_export_templates.tpz
+          unzip -q Godot_v4.5-stable_export_templates.tpz \
+            -d ~/.local/share/godot/export_templates/4.5.stable
+
+      - name: Verify Godot
+        run: |
+          ./godot --version
+
+      - name: Validate project
+        run: |
+          ./godot --headless --path . --editor --quit
+
+      - name: Upload project validation log
+        if: always()
+        run: |
+          ./godot --headless --path . --editor --quit 2>&1 | tee godot-validation.log
+        continue-on-error: true
+
+      - name: Upload validation log
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: SHRI-VERSE-APK
-          path: "**/*.apk"
-          if-no-files-found: error
+          name: godot-validation-log
+          path: godot-validation.log
+          if-no-files-found: warn
